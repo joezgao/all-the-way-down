@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>All the Way Down</title>
+<meta name="description" content="One maple leaf at five scales, from the whole leaf to a single stoma, rendered with WonderZoom's scale-aware surfel opacity in the browser.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#000; --fg:#efefef; --dim:#8b8b8b; --faint:#5d5d5d; --line:#1c1c1c;
+  --accent:#ffb547; --accent-soft:rgba(255,181,71,.14);
+  --serif:"Lora",Georgia,"Times New Roman",serif;
+  --sans:"Inter",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#000; --fg:#efefef; } }
+:root[data-theme="dark"]{ --bg:#000; --fg:#efefef; }
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);overflow:hidden}
+body{font-family:var(--sans);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+#stage{position:fixed;inset:0;display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+#stage.dragging{cursor:grabbing}
+.scrim{position:fixed;left:0;right:0;pointer-events:none}
+.scrim.top{top:0;height:230px;background:linear-gradient(rgba(0,0,0,.78),rgba(0,0,0,.45) 55%,rgba(0,0,0,0))}
+.scrim.bot{bottom:0;height:260px;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.5) 45%,rgba(0,0,0,.8))}
+header{position:fixed;top:0;left:0;right:0;padding:28px max(32px,env(safe-area-inset-right)) 0 max(32px,env(safe-area-inset-left));pointer-events:none;
+  display:flex;justify-content:space-between;align-items:flex-start;gap:24px}
+h1{font-family:var(--serif);font-weight:400;font-style:italic;font-size:30px;letter-spacing:-.01em;margin:0 0 12px;line-height:1.1}
+.caption{margin:0;max-width:480px;font-size:13px;line-height:1.62;color:var(--dim)}
+.caption i{font-family:var(--serif);color:var(--fg)}
+.meta-col{position:relative;font-size:11px;letter-spacing:.04em;color:var(--faint);text-align:right;line-height:1.75}
+.meta{font-size:11px;letter-spacing:.04em;color:var(--faint);text-align:right;line-height:1.75;white-space:nowrap;font-variant-numeric:tabular-nums}
+.made{position:relative;pointer-events:auto;font:inherit;letter-spacing:inherit;color:var(--faint);background:none;border:0;padding:0;margin-top:4px;cursor:pointer;
+  border-radius:0;text-decoration:underline;text-decoration-color:#2e2e2e;text-underline-offset:3px;transition:color .25s}
+.made:hover,.made[aria-expanded="true"]{color:var(--fg)}
+.made::after{content:"";position:absolute;inset:-13px -8px}
+.meta span{color:var(--dim)}
+.meta .mode{color:var(--accent)}
+.meta .mode.off{color:var(--fg)}
+.meta table{border-collapse:collapse;margin:8px 0 0 auto;font-size:11px}
+.meta td,.meta th{padding:1px 0 1px 14px;text-align:right;font-weight:400}
+.meta th{color:var(--faint)}
+.meta td{color:var(--dim)}
+.meta td:first-child{color:var(--faint);text-align:left;padding-left:0}
+.meta tr.hi td{color:var(--fg)}
+.ladder{position:fixed;left:max(32px,env(safe-area-inset-left));bottom:max(30px,env(safe-area-inset-bottom));pointer-events:none;font-size:11px;letter-spacing:.04em;color:var(--faint);font-variant-numeric:tabular-nums}
+.rung{display:grid;grid-template-columns:62px 52px 64px;align-items:center;gap:8px;height:19px;transition:color .3s}
+.rung .sc{color:#454545}
+.rung .bar{height:2px;background:var(--line);position:relative;overflow:hidden}
+.rung .bar i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--accent)}
+.rung.on{color:var(--fg)}
+.sum{margin-top:6px;color:#454545}
+.scalebar{margin-top:16px;display:flex;flex-direction:column;gap:6px}
+.scalebar .rule{height:5px;border:1px solid var(--dim);border-top:0;width:100px}
+.scalebar .lab{color:var(--dim)}
+.dock{position:fixed;right:max(32px,env(safe-area-inset-right));bottom:max(26px,env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:flex-end;gap:12px;pointer-events:none}
+.controls{display:flex;gap:20px;align-items:center;pointer-events:auto;flex-wrap:wrap;justify-content:flex-end}
+.seg{display:flex;align-items:center;gap:2px}
+.seg-label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-right:8px}
+button{font:500 12px/1 var(--sans);color:var(--dim);background:none;border:0;padding:8px 11px;border-radius:999px;cursor:pointer;transition:color .25s,background .25s}
+button:hover{color:var(--fg)}
+button:focus-visible{outline:1px solid var(--accent);outline-offset:2px}
+.seg button[aria-pressed="true"]{color:var(--accent);background:var(--accent-soft)}
+#dive,.ghost{font-size:13px;letter-spacing:.02em;padding:11px 18px}
+#dive{color:#000;background:var(--accent);min-width:92px}
+#dive:hover{opacity:.88;color:#000}
+#dive.running{background:transparent;color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.ghost{color:var(--dim);background:none;box-shadow:inset 0 0 0 1px #2a2a2a}
+.ghost:hover{color:var(--fg);box-shadow:inset 0 0 0 1px #4a4a4a}
+button:disabled{opacity:.4;cursor:default}
+.hint{font-size:11px;color:var(--faint);letter-spacing:.03em}
+#dive.invite{box-shadow:0 0 0 4px rgba(255,181,71,.18),0 0 18px rgba(255,181,71,.35)}
+.meta,.made,.ladder{text-shadow:0 0 2px #000,0 1px 3px rgba(0,0,0,.9),0 0 14px rgba(0,0,0,.8)}
+/* a soft local scrim behind the meta and the ladder: invisible on the black leaf levels, it keeps their grey text
+   readable once a dive or a measurement lands on the bright orange stoma */
+.meta-col::before,.ladder::before{content:"";position:absolute;inset:-34px -52px;z-index:-1;pointer-events:none;
+  background:radial-gradient(farthest-side,rgba(0,0,0,.72) 40%,rgba(0,0,0,.42) 68%,rgba(0,0,0,.14) 86%,rgba(0,0,0,0))}
+.meta .mcap{margin-top:10px;color:var(--dim)}
+.meta .ratio{margin-top:6px;color:#b4b4b4;line-height:1.55;white-space:normal;max-width:240px;margin-left:auto}
+.lvcap{position:fixed;left:50%;bottom:112px;width:min(460px,calc(100% - 32px));transform:translate(-50%,8px);text-align:center;pointer-events:none;
+  opacity:0;transition:opacity .7s,transform .7s;text-shadow:0 1px 14px rgba(0,0,0,.75)}
+.lvcap.on{opacity:1;transform:translate(-50%,0)}
+.lvcap .nm{font-family:var(--serif);font-style:italic;font-size:28px;line-height:1.1;color:var(--fg)}
+.lvcap .ds{margin-top:7px;font-size:12px;line-height:1.55;color:#b4b4b4}
+.lvcap .ds span{color:var(--dim);font-variant-numeric:tabular-nums}
+.lvcap .inv{margin-top:6px;font-size:12px;color:var(--accent)}
+.mark{position:fixed;left:0;top:0;pointer-events:none;opacity:0;transition:opacity .5s}
+.mark i{position:absolute;left:-8px;top:-8px;width:16px;height:16px;border:1px solid var(--accent);border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
+.mark b{position:absolute;left:9px;top:-9px;width:18px;height:1px;background:var(--accent);transform:rotate(-30deg);transform-origin:0 0;opacity:.7}
+.mark span{position:absolute;left:26px;top:-27px;white-space:nowrap;font-size:11px;letter-spacing:.03em;color:var(--accent);text-shadow:0 1px 6px #000}
+.panel{position:fixed;top:24px;right:max(24px,env(safe-area-inset-right));width:min(420px,calc(100% - 32px));max-height:calc(100% - 48px);overflow:auto;
+  padding:22px 24px 20px;background:rgba(8,8,8,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border:1px solid #1f1f1f;border-radius:12px;opacity:0;transform:translateY(-4px);pointer-events:none;visibility:hidden;
+  transition:opacity .3s,transform .3s,visibility 0s linear .3s;z-index:5;overscroll-behavior:contain}
+.panel.on{opacity:1;transform:none;pointer-events:auto;visibility:visible;transition:opacity .3s,transform .3s}
+.panel h2{margin:0 0 10px;font:italic 400 20px/1.2 var(--serif);color:var(--fg);outline:0}
+.panel p{margin:0 0 8px;font-size:12.5px;line-height:1.6;color:var(--dim)}
+.panel p b{color:var(--fg);font-weight:500}
+.panel .eq{font-family:var(--serif);color:var(--fg);font-style:italic}
+.panel .close{position:absolute;top:7px;right:7px;width:44px;height:44px;padding:0;font-size:17px;line-height:44px;color:var(--faint);background:none}
+.panel .close:hover{color:var(--fg)}
+.panel .credit{margin:14px 0 0;padding-top:10px;border-top:1px solid #161616;font:italic 400 12.5px/1.4 var(--serif);color:#8e8e8e}
+.loading{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);font-family:var(--serif);font-style:italic;color:var(--dim);font-size:15px;pointer-events:none;transition:opacity .6s}
+@media (max-width: 720px){
+  header{padding:18px max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left));flex-direction:column;gap:10px}
+  .meta-col{align-self:flex-start}
+  h1{font-size:25px;margin-bottom:8px}
+  .caption{font-size:12.5px;line-height:1.55}
+  .caption .long{display:none}
+  .meta,.meta-col{text-align:left;font-size:11px;line-height:1.6}
+  .made{margin-top:2px}
+  #dive,.ghost{padding:10px 13px;font-size:12.5px}
+  #dive{min-width:0}
+  .panel{top:auto;bottom:max(16px,env(safe-area-inset-bottom));right:16px;max-height:min(78%,calc(100% - 32px))}
+  .meta table{margin-left:0}
+  .ladder{left:max(16px,env(safe-area-inset-left));bottom:calc(96px + max(16px,env(safe-area-inset-bottom)));font-size:11.5px}
+  .rung{grid-template-columns:56px 50px 44px;height:17px}
+  .dock{left:max(16px,env(safe-area-inset-left));right:max(16px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));align-items:stretch}
+  .controls{justify-content:space-between;gap:6px}
+  .seg-label{display:none}
+  .hint{text-align:center}
+  .hint .kb{display:none}
+  .scrim.bot{height:420px;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.62) 30%,rgba(0,0,0,.82))}
+  .scrim.top{height:250px}
+  .lvcap{left:auto;right:max(16px,env(safe-area-inset-right));bottom:calc(102px + max(16px,env(safe-area-inset-bottom)));width:calc(100% - 222px);text-align:right;transform:translate(0,8px)}
+  .lvcap.on{transform:none}
+  .lvcap .nm{font-size:22px}
+  .lvcap .ds,.lvcap .inv{font-size:11.5px}
+  .meta .ratio{margin-left:0}
+}
+@media (max-width:360px){
+  /* iPhone SE: the level numbers go (the ladder already shows them) and the mark's label wraps, so neither runs into the level name */
+  .ladder{font-size:11px}
+  .rung{grid-template-columns:52px 46px 40px}
+  .lvcap{width:calc(100% - 206px)}
+  .lvcap .ds span{display:none}
+  .mark span{white-space:normal;width:96px;top:-38px;line-height:1.3}
+}
+/* touch: on/off get 44px-wide, 36px-tall buttons, and every control a 44px-tall hit area (no layout change) */
+@media (pointer:coarse){
+  .hint .kb{display:none}   /* no keyboard on a phone */
+  .seg button{min-width:44px;min-height:36px}
+  .controls button{position:relative}
+  .controls button::after{content:"";position:absolute;inset:-4px 0}
+}
+@media (prefers-reduced-motion: reduce){ *{transition:none!important;animation:none!important} }
+@media (max-height: 560px) and (min-width: 721px){ .ladder .rung{height:16px} }
+/* short landscape (phones on their side): the long clause of the caption goes and the level caption moves to the
+   right, above the dock, so it clears the mark and the leaf */
+@media (max-height:500px) and (orientation:landscape){
+  header{padding-top:18px}
+  h1{font-size:25px;margin-bottom:8px}
+  .caption .long{display:none}
+  .ladder{bottom:max(18px,env(safe-area-inset-bottom))}
+  .dock{bottom:max(14px,env(safe-area-inset-bottom));gap:8px}
+  .lvcap{left:auto;right:max(32px,env(safe-area-inset-right));bottom:104px;width:280px;text-align:right;transform:translate(0,8px)}
+  .lvcap.on{transform:none}
+  .lvcap .nm{font-size:24px}
+  .panel{top:12px;max-height:calc(100% - 24px)}
+}
+</style>
+</head>
+<body>
+<canvas id="stage" aria-label="A maple leaf rendered from surfels; scroll or pinch to zoom, drag to orbit"></canvas>
+<div class="scrim top" aria-hidden="true"></div><div class="scrim bot" aria-hidden="true"></div>
+<header>
+  <div>
+    <h1>All the way down</h1>
+    <p class="caption">One autumn maple leaf at five scales, each ten times finer: leaf, veins, areoles, cells, a single stoma. <span class="long">Every surfel remembers the scale it was made at and fades as you move away from it: the scale-aware opacity of <i>WonderZoom</i> (Cao, Yu &amp; Wu, arXiv 2512.09164, 2025), in your browser.</span></p>
+  </div>
+  <div class="meta-col"><div class="meta" id="meta" aria-live="polite">
+    <div><span class="mode" id="m-mode">modulation on</span></div>
+    <div><span id="m-drawn">0</span> of <span id="m-total">0</span> surfels drawn</div>
+    <div>≈ <span id="m-mem">0</span> GPU memory (estimate)</div>
+    <div><span id="m-fps">–</span> fps<span id="m-gl"></span></div>
+    <div id="m-table"></div>
+  </div><button class="made" id="about" aria-expanded="false" aria-controls="panel">How it works</button></div>
+</header>
+<div class="ladder" id="ladder" aria-hidden="true">
+  <div id="rungs"></div>
+  <div class="sum" id="sum">Σα = 1.00</div>
+  <div class="scalebar"><div class="rule" id="rule"></div><div class="lab" id="rule-lab">1 cm</div></div>
+</div>
+<div class="dock">
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Scale-aware opacity modulation">
+      <span class="seg-label">Modulation</span>
+      <button id="mod-on" aria-pressed="true">on</button>
+      <button id="mod-off" aria-pressed="false">off</button>
+    </div>
+    <button id="measure" class="ghost" title="Time both modes at this view">Measure</button>
+    <button id="dive">Dive</button>
+  </div>
+  <div class="hint">scroll or pinch to zoom · drag to orbit<span class="kb"> · M toggles modulation</span></div>
+</div>
+<div class="mark" id="mark" aria-hidden="true"><i></i><b></b><span>one stoma, 10,000× down</span></div>
+<div class="lvcap" id="lvcap" aria-live="polite"><div class="nm" id="lv-nm"></div><div class="ds" id="lv-ds"></div><div class="inv" id="lv-inv"></div></div>
+<div class="loading" id="loading">growing the leaf…</div>
+<div class="panel" id="panel" role="dialog" aria-modal="false" aria-labelledby="ptitle">
+    <button class="close" id="close" aria-label="Close">&times;</button>
+    <h2 id="ptitle" tabindex="-1">How it works</h2>
+    <p>Each surfel is a flat Gaussian disk that also stores its <b>native scale</b>, <span class="eq">s = depth / focal</span> of the camera that made it (Eq. 1). The five levels were made by cameras ten times closer each time, all aimed at one stoma.</p>
+    <p>While you zoom, each surfel's opacity is multiplied by <span class="eq">α</span> (Eq. 2–3), which interpolates in log scale: 1 at its own scale, falling to 0 at its parent's or child's. Between two levels their α add to 1 (Prop. 1), so detail cross-fades instead of popping.</p>
+    <p>Surfels with α below 1/255 are dropped before sorting, so the GPU only holds what this zoom needs. Turn modulation <b>off</b> to draw every level at once, not the paper's retrained ablation. <b>Memory</b> is 32 B per drawn surfel plus 12 B per (surfel, 16 px tile) pair, the lists a tile rasterizer like 3DGS would allocate.</p>
+    <p>The scene is procedural, not WonderZoom's: their released scenes are 0.3–1.8 GB PyTorch files that need a CUDA renderer. The leaf here is maths, prefiltered at each level's pixel size. The renderer, the leaf and the feather that keeps Prop. 1 true at the edge of each local patch of detail are not from the paper.</p>
+    <p class="credit">Built with Claude for Joe Gao.</p>
+</div>
+
+<script id="worker-src" type="text/plain">
+// Procedural multi-scale leaf. Every level samples the same world, box-prefiltered at its own pixel footprint.
+const F = 1024, D0 = 0.226, NL = 5, HPX = [2.6, 5, 5, 5, 5];
+const D = [], H = [], RHO = [];
+for (let k = 0; k < NL; k++) { D[k] = D0 / Math.pow(10, k); H[k] = HPX[k] * D[k] / F; RHO[k] = 0.7 * D[k]; }
+function hash(i, j, s) {
+  let h = Math.imul(i | 0, 0x27d4eb2d) ^ Math.imul(j | 0, 0x165667b1) ^ Math.imul(s | 0, 0x9e3779b1);
+  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b); h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35); h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+const clamp01 = (x) => x < 0 ? 0 : x > 1 ? 1 : x;
+const sstep = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+const frac = (x) => x - Math.floor(x);
+// coverage of a line of half-width w at distance d, box-filtered over a footprint h (energy preserving)
+function lineCov(d, w, h) { const lo = Math.max(d - h * 0.5, -w), hi = Math.min(d + h * 0.5, w); return hi > lo ? Math.min(1, (hi - lo) / h) : 0; }
+// exact value for small footprints, area average once the footprint reaches the feature size c
+const feat = (ex, avg, h, c) => ex + (avg - ex) * sstep(0.25 * c, c, h);
+function vnoise(x, z, c, s) {
+  const fx = x / c, fz = z / c, ix = Math.floor(fx), iz = Math.floor(fz);
+  let u = fx - ix, v = fz - iz; u = u * u * (3 - 2 * u); v = v * v * (3 - 2 * v);
+  const a = hash(ix, iz, s), b = hash(ix + 1, iz, s), cc = hash(ix, iz + 1, s), d = hash(ix + 1, iz + 1, s);
+  return a + (b - a) * u + (cc - a) * v + (a - b - cc + d) * u * v;
+}
+// Voronoi: VE = distance to nearest cell edge, VID = random id of the cell. originSeed puts a seed exactly at (0,0).
+let VE = 0, VID = 0; const SX = new Float64Array(9), SZ = new Float64Array(9);
+function vor(x, z, c, seed, jit, originSeed) {
+  const gx = Math.round(x / c), gz = Math.round(z / c);
+  let best = 1e30, bi = 0, q = 0;
+  for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++, q++) {
+    const cx = gx + i, cz = gz + j; let ox = 0, oz = 0;
+    if (!(originSeed && cx === 0 && cz === 0)) { ox = (hash(cx, cz, seed) - 0.5) * jit; oz = (hash(cx, cz, seed + 7) - 0.5) * jit; }
+    const sx = (cx + ox) * c, sz = (cz + oz) * c; SX[q] = sx; SZ[q] = sz;
+    const dx = sx - x, dz = sz - z, d2 = dx * dx + dz * dz;
+    if (d2 < best) { best = d2; bi = q; }
+  }
+  const bx = SX[bi], bz = SZ[bi]; let edge = 1e30;
+  for (q = 0; q < 9; q++) {
+    if (q === bi) continue;
+    const nx = SX[q] - bx, nz = SZ[q] - bz, nl = Math.sqrt(nx * nx + nz * nz);
+    const d = -((x - (bx + SX[q]) * 0.5) * nx + (z - (bz + SZ[q]) * 0.5) * nz) / nl;
+    if (d < edge) edge = d;
+  }
+  VE = edge; VID = hash(gx + (bi % 3) - 1, gz + ((bi / 3) | 0) - 1, seed + 3);
+}
+// leaf: Acer palmatum, 7 lobes, doubly serrate; leaf coords have the petiole junction at (0,0), central lobe along +z
+const LOBES = [[0, 0.064, 0.0105], [0.62, 0.058, 0.0098], [-0.62, 0.058, 0.0098], [1.22, 0.046, 0.008], [-1.22, 0.046, 0.008], [1.86, 0.028, 0.0052], [-1.86, 0.028, 0.0052]]
+  .map(([p, L, W]) => ({ s: Math.sin(p), c: Math.cos(p), L, W }));
+const SHAPE_MAX = Math.pow(0.4, 0.6) * Math.pow(0.6, 0.9);
+const SINB = Math.sin(0.95), COTB = Math.cos(0.95) / Math.sin(0.95), KAP = 25, DS = 0.0052, S0 = 0.0055;
+// zoom target: a stoma on the central lobe, halfway between two secondary veins
+const TLX = 0.004, TLZ = S0 + 5.5 * DS + TLX * COTB + KAP * TLX * TLX;
+const CP = 3.4e-5, SC = 1.1e-4, SA = 1.3e-5, SB = 0.95e-5, PA = 0.7e-5, PB = 0.12e-5, SS = 2.6e-5;
+const GH = 2.0e-6, PD = 0.6e-6, CH = 0.3e-6;   // guard-cell height, pore depth, chloroplast bump: slopes stay below ~1
+const GOLD = [0.88, 0.58, 0.2], RED = [0.72, 0.21, 0.06], VEIN = [1.0, 0.8, 0.46], WALLC = [1.0, 0.86, 0.62],
+  GUARDC = [0.96, 0.64, 0.24], CHLC = [1.0, 0.87, 0.44], POREC = [0.07, 0.03, 0.01];
+let Y = 0, COV = 0, CR = 0, CG = 0, CB = 0;
+let sInS = 0, sGuard = 0, sPore = 0, sChl = 0, sRim = 0, sRel = 0, sFade = 1;
+function stoma(x, z, h, wantColor) {
+  const gx = Math.round(x / SC), gz = Math.round(z / SC); let bre = 1e30, bex = 0, bez = 0;
+  for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
+    const cx = gx + i, cz = gz + j; let ox = 0, oz = 0, ang = 0.35;
+    if (!(cx === 0 && cz === 0)) {
+      if (hash(cx, cz, 51) > 0.8) continue;
+      ox = (hash(cx, cz, 52) - 0.5) * 0.6; oz = (hash(cx, cz, 53) - 0.5) * 0.6; ang = hash(cx, cz, 54) * Math.PI;
+    }
+    const dx = x - (cx + ox) * SC, dz = z - (cz + oz) * SC, ca = Math.cos(ang), sa = Math.sin(ang);
+    const ex = dx * ca + dz * sa, ez = -dx * sa + dz * ca, re = Math.sqrt((ex / SA) * (ex / SA) + (ez / SB) * (ez / SB));
+    if (re < bre) { bre = re; bex = ex; bez = ez; }
+  }
+  sInS = clamp01((1 - bre) * SB / h + 0.5);
+  sChl = 0; sPore = 0; sGuard = 0; sRim = 0; sRel = 0;
+  // relief is built from distances (f / |grad f| for each ellipse), not from the h-filtered coverages: a step of a few µm
+  // over one surfel would make near-vertical walls that a flat surfel grid cannot cover (you would see through them)
+  const dO = (1 - bre) / Math.max(Math.hypot(bex / (SA * SA), bez / (SB * SB)) / Math.max(bre, 1e-6), 1);
+  sFade = sstep(0, 3e-6, -dO);                       // pavement cells flatten as they meet the stoma
+  if (sInS <= 0) return;
+  const rp = Math.sqrt((bex / PA) * (bex / PA) + (bez / PB) * (bez / PB));
+  sPore = clamp01((1 - rp) * PB / h + 0.5) * sInS;
+  sGuard = sInS * (1 - sPore);
+  sRim = lineCov(Math.abs(bre - 1) * SB, 0.7e-6, h);
+  const dP = rp < 1e-6 ? -PB : (rp - 1) / Math.max(Math.hypot(bex / (PA * PA), bez / (PB * PB)) / rp, 1);
+  if (dO > 0) {
+    if (dP >= 0) { const s = Math.sin(Math.PI * dP / (dP + dO)); sRel = GH * s * s; }      // two cushion-shaped guard cells
+    else { const s = Math.sin(0.5 * Math.PI * Math.min(1, -dP / (0.9 * PB))); sRel = -PD * s * s; }   // the pore, a groove
+  }
+  if (!wantColor && h > 0.5e-6) return;
+  let rcMin = 1e9;
+  for (let side = -1; side <= 1; side += 2) for (let q = 0; q < 7; q++) {
+    const psi = (0.17 + q * 0.11) * Math.PI;
+    const cx = SA * 0.6 * Math.cos(psi), cz = side * SB * 0.58 * Math.sin(psi);
+    let tx = -SA * Math.sin(psi), tz = side * SB * Math.cos(psi); const tl = Math.sqrt(tx * tx + tz * tz); tx /= tl; tz /= tl;
+    const dx = bex - cx, dz = bez - cz, cu = dx * tx + dz * tz, cv = -dx * tz + dz * tx;
+    const rc = Math.sqrt((cu / 1.45e-6) * (cu / 1.45e-6) + (cv / 0.9e-6) * (cv / 0.9e-6));
+    const c = clamp01((1 - rc) * 0.9e-6 / h + 0.5); if (c > sChl) sChl = c; if (rc < rcMin) rcMin = rc;
+  }
+  sChl *= sGuard;
+  if (h <= 0.5e-6) sRel += CH * sstep(1.05, 0.2, rcMin) * (dO > 0 && dP > 0 ? 1 : 0);   // chloroplasts: soft bumps
+}
+function sample(x, z, h, wantColor) {
+  const lx = x + TLX, lz = z + TLZ;
+  let m = 0.012 - Math.sqrt(lx * lx + (lz - 0.006) * (lz - 0.006));
+  let best = -1e9, bs = 0, bt = 0, bL = 1, bw = 0;
+  for (let i = 0; i < 7; i++) {
+    const lb = LOBES[i], s = lx * lb.s + lz * lb.c, t = lx * lb.c - lz * lb.s; let mi, w = 0;
+    if (s <= 0) mi = -Math.sqrt(s * s + t * t);
+    else {
+      const u = s / lb.L;
+      if (u >= 1) mi = -Math.sqrt((s - lb.L) * (s - lb.L) + t * t);
+      else {
+        w = lb.W * Math.pow(u, 0.6) * Math.pow(1 - u, 0.9) / SHAPE_MAX;
+        const f = sstep(0.28, 0.5, u); w *= 1 - f * (0.11 * frac(s / 0.0034) + 0.04 * frac(s / 0.00115));
+        mi = w - Math.abs(t);
+      }
+    }
+    if (mi > best) { best = mi; bs = s; bt = t; bL = lb.L; bw = w; }
+  }
+  if (best > m) m = best;
+  COV = clamp01(m / h + 0.5);
+  if (wantColor && COV < 0.03) return;
+  const r = Math.sqrt(lx * lx + lz * lz), u = clamp01(bs / bL), at = Math.abs(bt);
+  // veins: midrib, secondaries (curving to the tip), tertiary network, areoles
+  const covMid = bs > -0.002 ? lineCov(at, 0.00006 + 0.00055 * (1 - 0.8 * u), h) : 0;
+  let covSec = 0;
+  { const side = bt >= 0 ? 0 : 0.5, sOn = at * COTB + KAP * at * at, j0 = Math.round((bs - sOn - S0) / DS - side);
+    const lat = bw > 0 ? clamp01(at / bw) : 1;
+    for (let j = j0 - 1; j <= j0 + 1; j++) {
+      if (j < 0) continue; const sj = S0 + (j + side) * DS; if (sj > 0.86 * bL) continue;
+      const hw = 0.00017 * (1 - 0.55 * sj / bL) * (1 - 0.8 * lat); if (hw <= 0) continue;
+      const c = lineCov(Math.abs(bs - sj - sOn) * SINB, hw, h); if (c > covSec) covSec = c;
+    } }
+  vor(x, z, 0.0024, 11, 0.8, true); const covTer = feat(lineCov(VE, 2.8e-5, h), 4 * 2.8e-5 / 0.0024, h, 0.0024);
+  vor(x, z, 0.0003, 23, 0.8, true); const covMin = feat(lineCov(VE, 1.0e-5, h), 4 * 1.0e-5 / 0.0003, h, 0.0003);
+  // epidermis: jigsaw pavement cells and stomata
+  let wall, dome, cellVar, inS, guard, pore, chl, rim, rel, dfade;
+  if (h < 2 * CP) {
+    const wx = x + 2.4e-6 * Math.sin(z * 2.3e5 + 1.3), wz = z + 2.4e-6 * Math.sin(x * 2.1e5 + 0.7);
+    vor(wx, wz, CP, 37, 0.85, false);
+    stoma(x, z, h, wantColor);
+    const tS = sstep(0.25 * SS, SS, h);
+    inS = sInS + (0.032 - sInS) * tS; guard = sGuard + (0.03 - sGuard) * tS; pore = sPore + (0.001 - sPore) * tS;
+    chl = sChl + (0.005 - sChl) * tS; rim = sRim + (0.004 - sRim) * tS; rel = sRel * (1 - tS); dfade = sFade + (0.968 - sFade) * tS;
+    wall = feat(lineCov(VE, 0.9e-6, h) * (1 - sInS), 4 * 0.9e-6 / CP, h, CP);
+    dome = feat(Math.sqrt(clamp01(VE / (0.42 * CP))), 0.6, h, CP);
+    cellVar = feat(VID - 0.5, 0, h, CP);
+  } else { wall = 4 * 0.9e-6 / CP; dome = 0.6; cellVar = 0; inS = 0.032; guard = 0.03; pore = 0.001; chl = 0.005; rim = 0.004; rel = 0; dfade = 0.968; }
+  Y = 0.0055 * (r / 0.06) * (r / 0.06) + 0.002 * Math.pow(r / 0.06, 4) + 0.0004 * Math.sin(lx * 80 + lz * 30)
+    - 0.0005 * Math.exp(-(at / 0.0025) * (at / 0.0025)) * (bs > 0 ? 1 : 0)
+    + 1.4e-4 * covMid + 4.5e-5 * covSec + 1.2e-5 * covTer + 5e-6 * covMin
+    + 1.8e-6 * dome * dfade + rel;
+  if (!wantColor) return;
+  const f = clamp01(0.1 + 0.95 * Math.pow(r / 0.06, 1.3) + (vnoise(lx, lz, 0.007, 3) - 0.5) * 0.35 + (vnoise(lx, lz, 0.0018, 5) - 0.5) * 0.12);
+  let cr = GOLD[0] + (RED[0] - GOLD[0]) * f, cg = GOLD[1] + (RED[1] - GOLD[1]) * f, cb = GOLD[2] + (RED[2] - GOLD[2]) * f;
+  const cv = 1 + cellVar * 0.16; cr *= cv; cg *= cv; cb *= cv;
+  const mix = (C, a) => { cr += (C[0] - cr) * a; cg += (C[1] - cg) * a; cb += (C[2] - cb) * a; };
+  mix(VEIN, 0.78 * covMid); mix(VEIN, 0.6 * covSec); mix(VEIN, 0.42 * covTer); mix(VEIN, 0.32 * covMin);
+  mix(WALLC, 0.5 * wall); mix(GUARDC, 0.6 * guard); mix(CHLC, 0.85 * chl); mix(WALLC, 0.6 * rim); mix(POREC, 0.92 * pore);
+  CR = cr; CG = cg; CB = cb;
+}
+sample(0, 0, 1e-9, false); const YT = Y;   // put the target at y = 0
+const LX = -0.38, LY = 1.0, LZ = 0.5, LN = Math.hypot(LX, LY, LZ);
+function makeStore(cap) {
+  return { n: 0, pos: new Float32Array(cap * 3), nrm: new Float32Array(cap * 3), sig: new Float32Array(cap), col: new Uint8Array(cap * 4),
+    lsn: new Float32Array(cap), lsp: new Float32Array(cap), lsc: new Float32Array(cap), wc: new Float32Array(cap), ws: new Float32Array(cap) };
+}
+function push(S, k, x, y, z, nx, ny, nz, h, cr, cg, cb, o) {
+  const i = S.n++, r = Math.sqrt(x * x + z * z);
+  S.pos[3 * i] = x; S.pos[3 * i + 1] = y; S.pos[3 * i + 2] = z;
+  S.nrm[3 * i] = nx; S.nrm[3 * i + 1] = ny; S.nrm[3 * i + 2] = nz;
+  S.sig[i] = 0.62 * h;
+  const shade = Math.min(1.12, 0.36 + 0.74 * Math.max(0, (nx * LX + ny * LY + nz * LZ) / LN));
+  S.col[4 * i] = Math.min(255, cr * shade * 255); S.col[4 * i + 1] = Math.min(255, cg * shade * 255); S.col[4 * i + 2] = Math.min(255, cb * shade * 255);
+  S.col[4 * i + 3] = Math.round(o * 255);
+  // Eq. 1: native / parent / child scale = depth to camera C_k, C_k-1, C_k+1 (all straight above the target) / focal
+  S.lsn[i] = Math.log((D[k] - y) / F);
+  S.lsp[i] = k > 0 ? Math.log((D[k - 1] - y) / F) : Infinity;
+  const wc = k < NL - 1 ? 1 - sstep(0.8 * RHO[k + 1], RHO[k + 1], r) : 0;  // how much of the child patch covers this surfel
+  S.wc[i] = wc; S.lsc[i] = wc > 0 ? Math.log((D[k + 1] - y) / F) : -Infinity;
+  S.ws[i] = k > 0 ? 1 - sstep(0.8 * RHO[k], RHO[k], r) : 1;               // own feather at the edge of this patch
+}
+function genLevel(k) {
+  const h = H[k], dz = h * 0.8660254;
+  let xmin, xmax, zmin, zmax;
+  if (k === 0) { xmin = -0.06 - TLX; xmax = 0.06 - TLX; zmin = -0.024 - TLZ; zmax = 0.07 - TLZ; }
+  else { xmin = zmin = -RHO[k]; xmax = zmax = RHO[k]; }
+  const est = Math.ceil(((xmax - xmin) / h + 2) * ((zmax - zmin) / dz + 2) * (k ? 0.8 : 1)) + 4000;
+  const S = makeStore(est);
+  for (let iz = 0; ; iz++) {
+    const z0 = zmin + iz * dz; if (z0 > zmax) break; const off = (iz & 1) * 0.5 * h;
+    for (let ix = 0; ; ix++) {
+      const x0 = xmin + off + ix * h; if (x0 > xmax) break;
+      const x = x0 + (hash(ix, iz, 100 + k) - 0.5) * 0.3 * h, z = z0 + (hash(ix, iz, 200 + k) - 0.5) * 0.3 * h;
+      if (k > 0 && x * x + z * z > RHO[k] * RHO[k]) continue;
+      sample(x, z, h, true); if (COV < 0.03) continue;
+      const y0 = Y, cr = CR, cg = CG, cb = CB, o = 0.95 * COV, e = 0.6 * h;
+      sample(x + e, z, h, false); const yx = Y; sample(x, z + e, h, false); const yz = Y;
+      let nx = -(yx - y0) / e, nz = -(yz - y0) / e, ny = 1; const nl = Math.hypot(nx, ny, nz); nx /= nl; ny /= nl; nz /= nl;
+      push(S, k, x, y0 - YT, z, nx, ny, nz, h, cr, cg, cb, o);
+    }
+  }
+  if (k === 0) {   // petiole: a short curved tube leaving the leaf, level 0 only
+    for (let t = 0; t <= 1; t += h / 0.05) {
+      const cz = -0.003 - 0.05 * t, cy = -0.012 * Math.pow(t, 1.6), cx = 0.003 * t * t, rad = 0.0011 * (1 + 0.35 * t);
+      const nRing = Math.max(8, Math.round(2 * Math.PI * rad / h));
+      for (let q = 0; q < nRing; q++) {
+        const a = (q + (hash(q, Math.round(t * 1e4), 9) - 0.5) * 0.4) / nRing * 2 * Math.PI, nx = Math.cos(a), ny = Math.sin(a);
+        const f = 0.35 + 0.2 * Math.sin(t * 9);
+        push(S, 0, cx + nx * rad - TLX, cy + ny * rad - YT, cz - TLZ, nx, ny, 0, h,
+          GOLD[0] + (RED[0] - GOLD[0]) * f, GOLD[1] + (RED[1] - GOLD[1]) * f, GOLD[2] + (RED[2] - GOLD[2]) * f, 0.95);
+      }
+    }
+  }
+  return S;
+}
+postMessage({ type: 'meta', center: [0.0 - TLX, 0.004 - YT, 0.022 - TLZ], D, F });
+for (let k = 0; k < NL; k++) {
+  const t0 = performance.now(), S = genLevel(k), n = S.n, ms = performance.now() - t0;
+  const out = { type: 'level', k, n, ms, pos: S.pos.slice(0, 3 * n), nrm: S.nrm.slice(0, 3 * n), sig: S.sig.slice(0, n), col: S.col.slice(0, 4 * n),
+    lsn: S.lsn.slice(0, n), lsp: S.lsp.slice(0, n), lsc: S.lsc.slice(0, n), wc: S.wc.slice(0, n), ws: S.ws.slice(0, n) };
+  postMessage(out, [out.pos.buffer, out.nrm.buffer, out.sig.buffer, out.col.buffer, out.lsn.buffer, out.lsp.buffer, out.lsc.buffer, out.wc.buffer, out.ws.buffer]);
+}
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = (id) => document.getElementById(id);
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const NL = 5, NAMES = ['leaf', 'veins', 'areoles', 'cells', 'stoma'], FIELDS = ['24 cm', '2.4 cm', '2.4 mm', '240 µm', '24 µm'];
+const DESC = ['the whole leaf, seven lobes', 'the midrib and the veins that branch from it', 'islands of tissue walled in by the finest veins',
+  'jigsaw-shaped skin cells, dotted with stomata', 'one stoma: two guard cells around a pore'];
+let F = 1024, D = [0.226, 0.0226, 0.00226, 0.000226, 0.0000226], CENTER = new THREE.Vector3();
+
+// ---------- world store (CPU), filled level by level by the worker ----------
+let N = 0, P = new Float32Array(0), NR = new Float32Array(0), SG = new Float32Array(0), CO = new Uint8Array(0),
+  LSN = new Float32Array(0), LSP = new Float32Array(0), LSC = new Float32Array(0), WC = new Float32Array(0), WS = new Float32Array(0);
+const levelN = [0, 0, 0, 0, 0], levelMs = [0, 0, 0, 0, 0];
+let idx = new Uint32Array(0), key = new Uint16Array(0), a8 = new Uint8Array(0), sorted = new Uint32Array(0);
+const counts = new Uint32Array(65536);
+function grow(A, n, C) { const B = new C(n); B.set(A); return B; }
+function addLevel(m) {
+  const n0 = N, n1 = N + m.n;
+  P = grow(P, 3 * n1, Float32Array); NR = grow(NR, 3 * n1, Float32Array); SG = grow(SG, n1, Float32Array); CO = grow(CO, 4 * n1, Uint8Array);
+  LSN = grow(LSN, n1, Float32Array); LSP = grow(LSP, n1, Float32Array); LSC = grow(LSC, n1, Float32Array); WC = grow(WC, n1, Float32Array); WS = grow(WS, n1, Float32Array);
+  P.set(m.pos, 3 * n0); NR.set(m.nrm, 3 * n0); SG.set(m.sig, n0); CO.set(m.col, 4 * n0);
+  LSN.set(m.lsn, n0); LSP.set(m.lsp, n0); LSC.set(m.lsc, n0); WC.set(m.wc, n0); WS.set(m.ws, n0);
+  N = n1; idx = new Uint32Array(N); key = new Uint16Array(N); a8 = new Uint8Array(N); sorted = new Uint32Array(N);
+  levelN[m.k] = m.n; levelMs[m.k] = m.ms; dirty = true; buildLadder();
+  $('m-total').textContent = N.toLocaleString('en-US');
+  if (m.k === 0) { $('loading').style.opacity = 0; }
+  if (m.k === NL - 1) { state.ready = true; }
+}
+
+// ---------- renderer ----------
+const canvas = $('stage');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'high-performance', preserveDrawingBuffer: false });
+renderer.setClearColor(0x000000, 1);
+const gl = renderer.getContext();
+let SOFTWARE = false;
+try { const ext = gl.getExtension('WEBGL_debug_renderer_info'); const name = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : ''; SOFTWARE = /swiftshader|llvmpipe|software/i.test(name); } catch (e) {}
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 1e-7, 10);
+const FOV = 40 * Math.PI / 180;
+const material = new THREE.ShaderMaterial({
+  uniforms: { uView: { value: new THREE.Vector2(1, 1) }, uFocal: { value: 1 } },
+  vertexShader: `
+    attribute vec3 iPos; attribute vec3 iNrm; attribute float iSig; attribute vec4 iCol;
+    uniform vec2 uView; uniform float uFocal;
+    varying vec4 vCol; varying vec2 vUv;
+    void main() {
+      vec3 t = (modelViewMatrix * vec4(iPos, 1.0)).xyz;
+      float z = -t.z;
+      if (z <= 0.0) { gl_Position = vec4(0.0, 0.0, 2.0, 1.0); return; }
+      // flattened 3D Gaussian: two in-plane axes of length sigma, a thin normal axis (the surfel's eps)
+      vec3 n = normalize(iNrm);
+      vec3 a = abs(n.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+      vec3 u = normalize(cross(n, a)), v = cross(n, u);
+      mat3 R = mat3(modelViewMatrix);
+      vec3 uu = R * u * iSig, vv = R * v * iSig, nn = R * n * (iSig * 0.03);
+      float iz = 1.0 / z;
+      vec3 jx = vec3(uFocal * iz, 0.0, uFocal * t.x * iz * iz);
+      vec3 jy = vec3(0.0, uFocal * iz, uFocal * t.y * iz * iz);
+      vec2 A = vec2(dot(jx, uu), dot(jy, uu)), B = vec2(dot(jx, vv), dot(jy, vv)), C = vec2(dot(jx, nn), dot(jy, nn));
+      float sxx = A.x * A.x + B.x * B.x + C.x * C.x, syy = A.y * A.y + B.y * B.y + C.y * C.y, sxy = A.x * A.y + B.x * B.y + C.x * C.y;
+      float det0 = max(sxx * syy - sxy * sxy, 0.0);
+      sxx += 0.3; syy += 0.3;                                  // 0.3 px^2 low-pass, as in 3DGS
+      float det1 = sxx * syy - sxy * sxy;
+      float comp = sqrt(det0 / det1);                          // keeps a sub-pixel surfel's energy (Mip-Splatting 2D filter)
+      float mid = 0.5 * (sxx + syy), rad = sqrt(max(0.25 * (sxx - syy) * (sxx - syy) + sxy * sxy, 0.0));
+      float l1 = mid + rad, l2 = max(mid - rad, 0.1);
+      vec2 e1 = abs(sxy) > 1e-9 ? normalize(vec2(sxy, l1 - sxx)) : (sxx >= syy ? vec2(1.0, 0.0) : vec2(0.0, 1.0));
+      vec2 e2 = vec2(-e1.y, e1.x);
+      float lim = 2.0 * length(uView);
+      vec2 r1 = e1 * min(2.6 * sqrt(l1), lim), r2 = e2 * min(2.6 * sqrt(l2), lim);
+      vec2 c = vec2(uFocal * t.x * iz, uFocal * t.y * iz);
+      vec2 p = c + position.x * r1 + position.y * r2;
+      gl_Position = vec4(p / (0.5 * uView), 0.0, 1.0);
+      vUv = position.xy * vec2(min(2.6, lim / sqrt(l1)), min(2.6, lim / sqrt(l2)));
+      vCol = vec4(iCol.rgb, iCol.a * comp);
+    }`,
+  fragmentShader: `
+    varying vec4 vCol; varying vec2 vUv;
+    void main() {
+      float a = vCol.a * exp(-0.5 * dot(vUv, vUv));
+      if (a < 0.004) discard;
+      gl_FragColor = vec4(vCol.rgb * a, a);
+    }`,
+  transparent: true, depthTest: false, depthWrite: false,
+  blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+});
+let cap = 0, fArr, cArr, fBuf, cAttr;
+const mesh = new THREE.Mesh(new THREE.InstancedBufferGeometry(), material);
+mesh.frustumCulled = false; scene.add(mesh);
+function ensureCap(n) {
+  if (n <= cap && (n >= cap / 4 || cap <= 4096)) return;
+  cap = Math.max(4096, Math.ceil(n * 1.3));
+  const g = new THREE.InstancedBufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3));
+  g.setIndex([0, 1, 2, 0, 2, 3]);
+  fArr = new Float32Array(cap * 7); fBuf = new THREE.InstancedInterleavedBuffer(fArr, 7, 1); fBuf.setUsage(THREE.DynamicDrawUsage);
+  g.setAttribute('iPos', new THREE.InterleavedBufferAttribute(fBuf, 3, 0));
+  g.setAttribute('iNrm', new THREE.InterleavedBufferAttribute(fBuf, 3, 3));
+  g.setAttribute('iSig', new THREE.InterleavedBufferAttribute(fBuf, 1, 6));
+  cArr = new Uint8Array(cap * 4); cAttr = new THREE.InstancedBufferAttribute(cArr, 4, true, 1); cAttr.setUsage(THREE.DynamicDrawUsage);
+  g.setAttribute('iCol', cAttr);
+  g.instanceCount = 0;
+  mesh.geometry.dispose(); mesh.geometry = g;
+}
+
+// ---------- view ----------
+const state = { logD: 0, tLogD: 0, az: 0.5, el: 0.95, mod: true, ready: false, fps: 0, stats: null, cullMs: 0, diving: 0 };
+let bufW = 1, bufH = 1, dpr = 1, focal = 1, dirty = true, last = '';
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  dpr = Math.min(devicePixelRatio || 1, SOFTWARE ? 1 : (w >= 1100 ? 1.5 : 2));
+  renderer.setPixelRatio(dpr); renderer.setSize(w, h, false);
+  bufW = Math.round(w * dpr); bufH = Math.round(h * dpr);
+  focal = 0.5 * bufH / Math.tan(FOV / 2);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+  material.uniforms.uView.value.set(bufW, bufH); material.uniforms.uFocal.value = focal;
+  dirty = true;
+}
+// camera distance at which the target is seen at level k's native scale: d / focal = D_k / F
+const distFor = (k) => D[k] * focal / F;
+const decadesAt = (logD) => (Math.log(distFor(0)) - logD) / Math.LN10;   // 0 = leaf's native view, 4 = stoma's
+const LOG_MIN = () => Math.log(distFor(NL - 1) / 12), LOG_MAX = () => Math.log(distFor(0) * 3.2);
+const clampLog = (x) => Math.min(LOG_MAX(), Math.max(LOG_MIN(), x));
+const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const pivot = new THREE.Vector3();
+function placeCamera() {
+  const d = Math.exp(state.logD);
+  const w = sstep(Math.log(distFor(1) * 1.5), Math.log(distFor(0) * 0.8), state.logD);  // pivot: leaf centre -> target
+  pivot.copy(CENTER).multiplyScalar(w);
+  const ce = Math.cos(state.el);
+  camera.position.set(pivot.x + d * ce * Math.sin(state.az), pivot.y + d * Math.sin(state.el), pivot.z + d * ce * Math.cos(state.az));
+  camera.up.set(0, 1, 0); camera.lookAt(pivot); camera.updateMatrixWorld(); camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+}
+
+// ---------- Eq. 3, per surfel (with my spatial feather wc; wc = 1 is the paper's case) ----------
+function alphaOf(lsr, lsn, lsp, lsc, wc) {
+  if (lsr >= lsn) { if (lsp === Infinity) return 1; const t = (lsr - lsn) / (lsp - lsn); return t >= 1 ? 0 : 1 - t; }
+  if (wc <= 0) return 1;
+  const t = (lsn - lsr) / (lsn - lsc), ac = t >= 1 ? 0 : 1 - t;
+  return 1 - wc * (1 - ac);
+}
+function cull() {
+  const t0 = performance.now();
+  const e = camera.matrixWorldInverse.elements, fy = focal, hw = bufW / 2, hh = bufH / 2, invF = 1 / fy;
+  const d = Math.exp(state.logD), zmin = d * 1e-4, lz0 = Math.log(zmin), lzs = 65535 / Math.log(1e8);
+  const tilesX = Math.ceil(bufW / 16), tilesY = Math.ceil(bufH / 16), mod = state.mod;
+  const e0 = e[0], e1 = e[1], e2 = e[2], e4 = e[4], e5 = e[5], e6 = e[6], e8 = e[8], e9 = e[9], e10 = e[10], e12 = e[12], e13 = e[13], e14 = e[14];
+  let n = 0, pairs = 0; counts.fill(0);
+  const perLevel = [0, 0, 0, 0, 0]; let lv = 0, lvEnd = levelN[0];
+  for (let i = 0; i < N; i++) {
+    while (i >= lvEnd && lv < NL - 1) { lv++; lvEnd += levelN[lv]; }
+    const x = P[3 * i], y = P[3 * i + 1], z = P[3 * i + 2];
+    const tz = -(e2 * x + e6 * y + e10 * z + e14); if (tz <= zmin) continue;
+    const iz = fy / tz, sx = (e0 * x + e4 * y + e8 * z + e12) * iz, sy = (e1 * x + e5 * y + e9 * z + e13) * iz;
+    const r = 2.6 * SG[i] * iz + 1.5;
+    if (Math.abs(sx) - r > hw || Math.abs(sy) - r > hh) continue;
+    let a = CO[4 * i + 3];
+    if (mod) { a *= alphaOf(Math.log(tz * invF), LSN[i], LSP[i], LSC[i], WC[i]) * WS[i]; if (a < 1) continue; }
+    idx[n] = i; a8[n] = a + 0.5;
+    let kq = ((Math.log(tz) - lz0) * lzs) | 0; kq = kq < 0 ? 0 : kq > 65535 ? 65535 : kq; kq = 65535 - kq;   // far first
+    key[n] = kq; counts[kq]++;
+    const side = Math.ceil(2 * r / 16) + 1; pairs += Math.min(side, tilesX) * Math.min(side, tilesY);
+    perLevel[lv]++; n++;
+  }
+  let acc = 0; for (let b = 0; b < 65536; b++) { const c = counts[b]; counts[b] = acc; acc += c; }
+  for (let j = 0; j < n; j++) sorted[counts[key[j]]++] = j;
+  ensureCap(n);
+  for (let q = 0; q < n; q++) {
+    const j = sorted[q], i = idx[j], o = 7 * q, c = 4 * q;
+    fArr[o] = P[3 * i]; fArr[o + 1] = P[3 * i + 1]; fArr[o + 2] = P[3 * i + 2];
+    fArr[o + 3] = NR[3 * i]; fArr[o + 4] = NR[3 * i + 1]; fArr[o + 5] = NR[3 * i + 2]; fArr[o + 6] = SG[i];
+    cArr[c] = CO[4 * i]; cArr[c + 1] = CO[4 * i + 1]; cArr[c + 2] = CO[4 * i + 2]; cArr[c + 3] = a8[j];
+  }
+  fBuf.updateRange.offset = 0; fBuf.updateRange.count = n * 7; fBuf.needsUpdate = true;
+  cAttr.updateRange.offset = 0; cAttr.updateRange.count = n * 4; cAttr.needsUpdate = true;
+  mesh.geometry.instanceCount = n;
+  state.cullMs = performance.now() - t0;
+  state.stats = { drawn: n, total: N, pairs, bytes: n * 32 + pairs * 12, perLevel, cap };
+}
+
+// ---------- UI ----------
+const fmtMB = (b) => b >= 1e9 ? (b / 1e9).toFixed(2) + ' GB' : b >= 1e6 ? (b / 1e6).toFixed(1) + ' MB' : (b / 1e3).toFixed(0) + ' kB';
+const fmtN = (x) => Math.round(x).toLocaleString('en-US');
+function buildLadder() {
+  $('rungs').innerHTML = NAMES.map((nm, k) => `<div class="rung" id="r${k}"><span>${nm}</span><span class="sc">${levelN[k] ? FIELDS[k] : '…'}</span><span class="bar"><i id="b${k}"></i></span></div>`).join('');
+  lastLadder = '';
+}
+let lastLadder = '';
+function targetAlphas() {
+  // the paper's Eq. 3 evaluated at the zoom target itself (no feather: the target is inside every patch)
+  const p = new THREE.Vector3(0, 0, 0).applyMatrix4(camera.matrixWorldInverse), lsr = Math.log(Math.max(-p.z, 1e-12) / focal);
+  return D.map((dk, k) => state.mod ? alphaOf(lsr, Math.log(dk / F), k ? Math.log(D[k - 1] / F) : Infinity, k < NL - 1 ? Math.log(D[k + 1] / F) : -Infinity, k < NL - 1 ? 1 : 0) : 1);
+}
+function niceLen(m) { const p = Math.pow(10, Math.floor(Math.log10(m))), f = m / p; return (f >= 5 ? 5 : f >= 2 ? 2 : 1) * p; }
+function fmtLen(m) {
+  if (m >= 0.01) return +(m * 100).toPrecision(3) + ' cm';
+  if (m >= 1e-3) return +(m * 1e3).toPrecision(3) + ' mm';
+  if (m >= 1e-6) return +(m * 1e6).toPrecision(3) + ' µm';
+  return +(m * 1e9).toPrecision(3) + ' nm';
+}
+function updateUI() {
+  const al = targetAlphas();
+  const sig = al.map((a) => a.toFixed(2)).join(',') + state.mod;
+  if (sig !== lastLadder) {
+    lastLadder = sig;
+    al.forEach((a, k) => { const b = $('b' + k); if (b) b.style.width = (a * 100).toFixed(1) + '%'; const r = $('r' + k); if (r) r.classList.toggle('on', a > 0.5); });
+    const s = al.reduce((x, y) => x + y, 0);
+    $('sum').textContent = state.mod ? `Σα at the stoma = ${s.toFixed(2)}` : `Σα = ${s.toFixed(0)}, every level drawn`;
+  }
+  // scale bar at the pivot depth
+  const pz = -pivot.clone().applyMatrix4(camera.matrixWorldInverse).z;
+  const pxPerM = focal / pz / dpr, L = niceLen(110 / pxPerM);
+  $('rule').style.width = (L * pxPerM).toFixed(1) + 'px'; $('rule-lab').textContent = fmtLen(L);
+  const st = state.stats;
+  if (st) { $('m-drawn').textContent = fmtN(st.drawn); $('m-mem').textContent = fmtMB(st.bytes); }
+  $('m-mode').textContent = state.mod ? 'modulation on' : 'modulation off'; $('m-mode').classList.toggle('off', !state.mod);
+  // a measurement belongs to the view it was taken at: drop it once the view moves, re-highlight on a mode switch
+  if (lastRes) { const vs = viewSig(); if (vs !== lastRes.vs) { lastRes = null; $('m-table').innerHTML = ''; } else if (lastRes.mod !== state.mod) renderTable(); }
+  // name the level you are at whenever it changes (Dive or manual zoom)
+  const x = decadesAt(state.logD), lv = Math.max(0, Math.min(NL - 1, Math.round(x)));
+  if (N && lv !== capLevel) showLevel(lv);
+  // the amber mark: where the four finer levels were made, until you start going down
+  const pt = new THREE.Vector3(0, 0, 0).applyMatrix4(camera.matrixWorldInverse);
+  const mk = $('mark'), show = N && !touched && x < 0.35 && pt.z < 0;
+  if (show) mk.style.transform = `translate(${(innerWidth / 2 + focal * pt.x / -pt.z / dpr).toFixed(1)}px,${(innerHeight / 2 - focal * pt.y / -pt.z / dpr).toFixed(1)}px)`;
+  mk.style.opacity = show ? 1 : 0;
+}
+let capLevel = -1, capTimer = 0, touched = false;
+function showLevel(k) {
+  capLevel = k; clearTimeout(capTimer);
+  $('lv-nm').textContent = NAMES[k];
+  $('lv-ds').innerHTML = `${DESC[k]}<br><span>level ${k + 1} of ${NL} · ${FIELDS[k]} across · ${levelN[k] ? fmtN(levelN[k]) + ' surfels' : 'still growing'}</span>`;
+  $('lv-inv').textContent = touched ? '' : 'Scroll or pinch to go down, or press Dive';
+  $('lvcap').classList.add('on');
+  if (touched) capTimer = setTimeout(() => $('lvcap').classList.remove('on'), state.diving ? 2400 : 3200);
+}
+function firstTouch() {   // the first zoom or dive: retire the invitation
+  if (touched) return; touched = true; $('dive').classList.remove('invite'); $('lv-inv').textContent = '';
+  clearTimeout(capTimer); capTimer = setTimeout(() => $('lvcap').classList.remove('on'), 1600);
+}
+function setMod(on) {
+  state.mod = on; dirty = true;
+  $('mod-on').setAttribute('aria-pressed', on); $('mod-off').setAttribute('aria-pressed', !on);
+}
+$('mod-on').onclick = () => setMod(true); $('mod-off').onclick = () => setMod(false);
+const panel = $('panel');
+const about = $('about');
+function setPanel(on) {
+  panel.classList.toggle('on', on); about.setAttribute('aria-expanded', String(on));
+  if (on) $('ptitle').focus({ preventScroll: true }); else if (panel.contains(document.activeElement)) about.focus();
+}
+about.onclick = (e) => { e.stopPropagation(); setPanel(!panel.classList.contains('on')); };
+$('close').onclick = () => setPanel(false);
+addEventListener('pointerdown', (e) => { if (panel.classList.contains('on') && !panel.contains(e.target) && e.target !== about) setPanel(false); });
+function diveLabel() { $('dive').textContent = state.diving ? 'Stop' : (state.tLogD < Math.log(distFor(2)) ? 'Surface' : 'Dive'); $('dive').classList.toggle('running', !!state.diving); }
+// The tour runs on the clock, not on frames, so a slow renderer skips ahead instead of crawling. Its path in decades is
+// x = y - A/(2π)·sin(2πy) with y linear in time: it slows to (1-A) of the mean speed at each level's own scale and
+// passes the cross-fade between two levels at (1+A), never stopping, so every blend is still seen.
+const DIVE_A = 0.7, DIVE_SEC = 2.0;   // seconds per decade on average
+const STOMA_AZ = Math.atan2(Math.cos(0.35), Math.sin(0.35));   // camera azimuth that puts the stoma's major axis (angle 0.35 in x-z) upright
+const warp = (y) => y - DIVE_A / (2 * Math.PI) * Math.sin(2 * Math.PI * y);
+function unwarp(x) { let lo = x - 1, hi = x + 1; for (let i = 0; i < 40; i++) { const m = 0.5 * (lo + hi); if (warp(m) < x) lo = m; else hi = m; } return 0.5 * (lo + hi); }
+$('dive').onclick = () => {
+  if (state.diving) { state.diving = 0; state.tLogD = state.logD; diveLabel(); return; }
+  firstTouch();
+  const down = state.tLogD >= Math.log(distFor(2)), x0 = decadesAt(state.logD), x1 = down ? NL - 1 : 0;
+  // on a portrait screen, turn during the descent so the stoma's long axis (26 µm) ends up along the tall side
+  let az1 = state.az;
+  if (down && innerWidth < 0.8 * innerHeight) { az1 = STOMA_AZ; while (az1 - state.az > Math.PI / 2) az1 -= Math.PI; while (state.az - az1 > Math.PI / 2) az1 += Math.PI; }
+  if (REDUCED) { state.logD = state.tLogD = Math.log(distFor(x1)); state.az = az1; dirty = true; diveLabel(); return; }
+  state.diving = down ? -1 : 1; state.diveY0 = unwarp(x0); state.diveY1 = x1; state.diveT0 = performance.now(); state.diveAz0 = state.az; state.diveAz1 = az1; diveLabel();
+};
+
+// measure both modes at this exact view: frames timed with a 1-pixel readback so the GPU really finishes
+const px1 = new Uint8Array(4);
+const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r()));
+async function measure(opts = {}) {
+  const maxFrames = opts.frames || 8, budget = opts.budget || 4000, saved = state.mod, res = {};
+  $('measure').disabled = true; $('m-table').innerHTML = '<div style="margin-top:8px">measuring…</div>';
+  await nextFrame();
+  for (const m of [true, false]) {
+    state.mod = m; placeCamera(); cull(); const cms = state.cullMs, st = state.stats;
+    renderer.render(scene, camera); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px1);
+    let f = 0; const t0 = performance.now();
+    while (f < maxFrames && (f < 2 || performance.now() - t0 < budget)) { renderer.render(scene, camera); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px1); f++; }
+    const ms = (performance.now() - t0) / f;
+    res[m ? 'on' : 'off'] = { drawn: st.drawn, bytes: st.bytes, pairs: st.pairs, perLevel: st.perLevel, gpuMs: +ms.toFixed(2), fps: +(1000 / ms).toFixed(1), cullMs: +cms.toFixed(1), frames: f };
+    await nextFrame();
+  }
+  state.mod = saved; dirty = true;
+  lastRes = { res, vs: viewSig(), level: NAMES[Math.max(0, Math.min(NL - 1, Math.round(decadesAt(state.logD))))] }; renderTable();
+  $('measure').disabled = false;
+  res.view = { logD: state.logD, az: state.az, el: state.el, field: fmtLen(niceLen(1)), w: bufW, h: bufH, software: SOFTWARE };
+  return res;
+}
+$('measure').onclick = () => measure();
+let lastRes = null;
+const viewSig = () => [state.logD.toFixed(4), state.az.toFixed(4), state.el.toFixed(4), bufW, bufH, N].join('|');
+function renderTable() {
+  const { res, level } = lastRes; lastRes.mod = state.mod;
+  const row = (k, r) => `<tr class="${(k === 'on') === state.mod ? 'hi' : ''}"><td>${k}</td><td>${fmtN(r.drawn)}</td><td>${fmtMB(r.bytes)}</td><td>${r.fps}</td></tr>`;
+  const x = (a, b) => (a / b).toFixed(1) + '×';
+  $('m-table').innerHTML = `<div class="mcap">measured at this ${level} view</div><table><tr><th>modulation</th><th>surfels</th><th>memory</th><th>fps</th></tr>${row('on', res.on)}${row('off', res.off)}</table>`
+    + `<div class="ratio">Off draws ${x(res.off.drawn, res.on.drawn)} the surfels, needs ${x(res.off.bytes, res.on.bytes)} the memory and takes ${x(res.off.gpuMs, res.on.gpuMs)} as long per frame.</div>`;
+}
+
+// ---------- input: drag to orbit, wheel / pinch to zoom ----------
+const pointers = new Map(); let pinch0 = 0;
+canvas.addEventListener('pointerdown', (e) => { canvas.setPointerCapture(e.pointerId); pointers.set(e.pointerId, [e.clientX, e.clientY]); canvas.classList.add('dragging'); if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); } });
+canvas.addEventListener('pointermove', (e) => {
+  if (!pointers.has(e.pointerId)) return;
+  const p = pointers.get(e.pointerId), dx = e.clientX - p[0], dy = e.clientY - p[1];
+  pointers.set(e.pointerId, [e.clientX, e.clientY]);
+  if (pointers.size === 1) { state.az -= dx * 0.006; state.el = Math.min(1.45, Math.max(0.22, state.el + dy * 0.005)); dirty = true; }
+  else if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    if (pinch0 > 0) { state.tLogD = clampLog(state.tLogD - Math.log(d / pinch0)); state.logD = state.tLogD; state.diving = 0; diveLabel(); firstTouch(); }
+    pinch0 = d; dirty = true;
+  }
+});
+const up = (e) => { pointers.delete(e.pointerId); pinch0 = 0; if (!pointers.size) canvas.classList.remove('dragging'); };
+canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+  if (state.diving) state.tLogD = state.logD;
+  state.tLogD = clampLog(state.tLogD + dy * 0.0022); state.diving = 0; diveLabel(); firstTouch();
+  if (REDUCED) state.logD = state.tLogD;
+}, { passive: false });
+addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'BUTTON' && (e.key === ' ' || e.key === 'Enter')) return;
+  if (e.key === 'Escape') { setPanel(false); return; }
+  if (e.key === 'm' || e.key === 'M') setMod(!state.mod);
+  else if (e.key === '+' || e.key === '=') { state.tLogD = clampLog(state.tLogD - 0.35); firstTouch(); }
+  else if (e.key === '-' || e.key === '_') { state.tLogD = clampLog(state.tLogD + 0.35); firstTouch(); }
+  else if (e.key === 'ArrowLeft') state.az += 0.08; else if (e.key === 'ArrowRight') state.az -= 0.08;
+  else if (e.key === 'ArrowUp') state.el = Math.min(1.45, state.el + 0.06); else if (e.key === 'ArrowDown') state.el = Math.max(0.22, state.el - 0.06);
+  else return;
+  if (REDUCED) state.logD = state.tLogD;
+  dirty = true;
+});
+addEventListener('resize', resize);
+
+// ---------- loop ----------
+let lastT = performance.now(), fpsN = 0, fpsAcc = 0, prevDraw = 0, drewLast = false, idleTimed = false, settledAt = 0; state.frames = 0;
+function frame(now) {
+  const dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
+  if (state.diving) {
+    const t = Math.max(0, now - state.diveT0) / 1000, dir = -state.diving;   // dir +1 = going down
+    let y = state.diveY0 + dir * t / DIVE_SEC;
+    const done = dir > 0 ? y >= state.diveY1 : y <= state.diveY1;
+    if (done) y = state.diveY1;
+    const u = Math.min(1, Math.abs(y - state.diveY0) / Math.max(1e-6, Math.abs(state.diveY1 - state.diveY0)));
+    state.az = state.diveAz0 + (state.diveAz1 - state.diveAz0) * u * u * (3 - 2 * u);
+    state.logD = state.tLogD = Math.log(distFor(0)) - warp(y) * Math.LN10; dirty = true;
+    if (done) { state.diving = 0; diveLabel(); }
+  }
+  state.tLogD = clampLog(state.tLogD);
+  const k = REDUCED ? 1 : 1 - Math.exp(-dt * 9);
+  if (Math.abs(state.tLogD - state.logD) > 1e-5) { state.logD += (state.tLogD - state.logD) * k; dirty = true; }
+  const sig = [state.logD.toFixed(6), state.az.toFixed(5), state.el.toFixed(5), bufW, bufH, state.mod, N].join('|');
+  // draw only when something changed; fps counts frames actually drawn, over runs of consecutive drawn frames
+  if (sig !== last || dirty) {
+    last = sig; dirty = false; placeCamera(); if (N) cull(); updateUI();
+    renderer.render(scene, camera);
+    if (drewLast) { fpsN++; fpsAcc += now - prevDraw; }
+    prevDraw = now; drewLast = true; state.frames++;
+    if (fpsAcc >= 700 || (fpsN >= 1 && fpsAcc >= 2000)) { state.fps = fpsN * 1000 / fpsAcc; fpsN = 0; fpsAcc = 0; $('m-fps').textContent = state.fps.toFixed(state.fps < 10 ? 1 : 0); }
+    idleTimed = false; settledAt = now;
+  } else {
+    drewLast = false;
+    if (!idleTimed && N && now - settledAt > 350) {   // at rest: time one synced frame of this exact view
+      idleTimed = true; const t0 = performance.now();
+      renderer.render(scene, camera); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px1);
+      const ms = performance.now() - t0; state.frameMs = ms; state.fps = 1000 / ms;
+      $('m-fps').textContent = state.fps.toFixed(state.fps < 10 ? 1 : 0);
+    }
+  }
+  requestAnimationFrame(frame);
+}
+resize();
+state.logD = state.tLogD = Math.log(distFor(0) * 1.0);
+buildLadder(); diveLabel(); $('dive').classList.add('invite');
+if (SOFTWARE) $('m-gl').textContent = ' · software WebGL';
+const onMsg = (m) => {
+  if (m.type === 'meta') { CENTER.set(m.center[0], m.center[1], m.center[2]); D = m.D; F = m.F; dirty = true; }
+  else if (m.type === 'level') addLevel(m);
+};
+// grow the leaf in a worker; if the page's sandbox refuses blob workers, grow it on the main thread instead
+let fellBack = false;
+function growInline() {
+  if (fellBack) return; fellBack = true;
+  setTimeout(() => { try { new Function('postMessage', $('worker-src').textContent)((m) => onMsg(m)); } catch (e) { $('loading').textContent = 'could not grow the leaf here'; } }, 30);
+}
+try {
+  const worker = new Worker(URL.createObjectURL(new Blob([$('worker-src').textContent], { type: 'text/javascript' })));
+  worker.onmessage = (ev) => onMsg(ev.data);
+  worker.onerror = (e) => { if (!N) { e.preventDefault && e.preventDefault(); growInline(); } };} catch (e) { growInline(); }
+requestAnimationFrame(frame);
+
+// hooks for the headless check
+window.__zoom = {
+  state, levelN, levelMs, measure, setMod,
+  setView(logDRel, az, el) {   // logDRel: zoom in decades relative to level 0's native distance (0 = leaf, 4 = stoma)
+    state.logD = state.tLogD = clampLog(Math.log(distFor(0)) - logDRel * Math.log(10));
+    if (az !== undefined) state.az = az; if (el !== undefined) state.el = el; dirty = true; firstTouch(); diveLabel();
+  },
+  alphas: () => targetAlphas(), get software() { return SOFTWARE; }, get dpr() { return dpr; },
+};
+})();
+</script>
+</body>
+</html>

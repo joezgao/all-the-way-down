@@ -1,0 +1,14 @@
+All the way down — real-GPU measurement, 2026-11-06 ~02:50
+Machine: Apple M5 Pro (16-core GPU, Metal 4), macOS 26.6. Browser: Google Chrome 157 (headed, visible tab).
+WebGL renderer: ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro). Page flag SOFTWARE=false. Viewport 1200x817 CSS px, DPR 2 -> page dpr 1.5, buffer 1800x1226.
+Piece's own measure() (the Measure button's function); views via window.__zoom.setView(0 | 2.15 | 4).
+Default (8 frames) x5, median [range]:
+  leaf     on 536.9 [232.6-547.9] fps, 50,363 drawn, 4.0 MB | off 52.3 [52.0-53.1] fps, 288,556 drawn, 23.1 MB
+  areoles  on 452.0 [221.6-467.8] fps, 132,406 drawn, 16.1 MB | off 151.8 [104.7-166.3] fps, 210,994 drawn, 29.2 MB
+  stoma    on 217.4 [197.0-275.9] fps, 74,817 drawn, 13.1 MB | off 257.2 [187.8-327.9] fps, 76,078 drawn, 23.3 MB
+120 frames x1:
+  leaf     on 496.5 fps (2.01 ms) | off 54.1 fps (18.5 ms)
+  areoles  on 684.2 fps (1.46 ms) | off 178.9 fps (5.59 ms)
+  stoma    on 611.9 fps (1.63 ms) | off 623.7 fps (1.60 ms)
+Measure button clicked at leaf view, table: on 50,363 / 4.0 MB / 240.2 fps; off 288,556 / 23.1 MB / 53.3 fps
+Built-in Claude browser pane: hardware (ANGLE Metal) but pane hidden -> requestAnimationFrame never fired; not usable for timing.
