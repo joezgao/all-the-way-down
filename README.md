@@ -10,6 +10,8 @@ The method is the paper's. The viewer and the scene were written for this piece,
 
 ## Open it
 
+**Live:** [joezgao.github.io/all-the-way-down/all-the-way-down.html](https://joezgao.github.io/all-the-way-down/all-the-way-down.html) (nothing to install).
+
 Open `all-the-way-down.html` in a recent browser. It is one file of about 57 kB (20 kB gzipped) with no data files: the scene is generated in a Web Worker in about 1–2 s. It loads three.js 0.147.0 from jsDelivr and Lora and Inter from Google Fonts (with fallbacks); everything else is inline. No server is needed.
 
 - **Scroll or pinch** to zoom, **drag** to orbit.
