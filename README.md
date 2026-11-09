@@ -78,7 +78,7 @@ On a real GPU: Chrome 157 on an Apple M5 Pro (WebGL through ANGLE on Metal), 180
 - `screenshots/`: the first view, the leaf, the areoles with modulation on and off, the stoma, and the phone layout
 - `loop/`: the loop video, its GIF and a poster
 
-The headless check script is not in this repository yet.
+The headless check script is not included in this repository.
 
 ## Credits and license
 
