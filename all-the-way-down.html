@@ -199,7 +199,7 @@ button:disabled{opacity:.4;cursor:default}
     <button id="measure" class="ghost" title="Time both modes at this view">Measure</button>
     <button id="dive">Dive</button>
   </div>
-  <div class="hint">scroll or pinch to zoom · drag to orbit<span class="kb"> · M toggles modulation</span></div>
+  <div class="hint">scroll or pinch to zoom, drag to orbit<span class="kb">, M toggles modulation</span></div>
 </div>
 <div class="mark" id="mark" aria-hidden="true"><i></i><b></b><span>one stoma, 10,000× down</span></div>
 <div class="lvcap" id="lvcap" aria-live="polite"><div class="nm" id="lv-nm"></div><div class="ds" id="lv-ds"></div><div class="inv" id="lv-inv"></div></div>
@@ -669,7 +669,7 @@ let capLevel = -1, capTimer = 0, touched = false;
 function showLevel(k) {
   capLevel = k; clearTimeout(capTimer);
   $('lv-nm').textContent = NAMES[k];
-  $('lv-ds').innerHTML = `${DESC[k]}<br><span>level ${k + 1} of ${NL} · ${FIELDS[k]} across · ${levelN[k] ? fmtN(levelN[k]) + ' surfels' : 'still growing'}</span>`;
+  $('lv-ds').innerHTML = `${DESC[k]}<br><span>level ${k + 1} of ${NL}, ${FIELDS[k]} across, ${levelN[k] ? fmtN(levelN[k]) + ' surfels' : 'still growing'}</span>`;
   $('lv-inv').textContent = touched ? '' : 'Scroll or pinch to go down, or press Dive';
   $('lvcap').classList.add('on');
   if (touched) capTimer = setTimeout(() => $('lvcap').classList.remove('on'), state.diving ? 2400 : 3200);
@@ -821,7 +821,7 @@ function frame(now) {
 resize();
 state.logD = state.tLogD = Math.log(distFor(0) * 1.0);
 buildLadder(); diveLabel(); $('dive').classList.add('invite');
-if (SOFTWARE) $('m-gl').textContent = ' · software WebGL';
+if (SOFTWARE) $('m-gl').textContent = ' (software WebGL)';
 const onMsg = (m) => {
   if (m.type === 'meta') { CENTER.set(m.center[0], m.center[1], m.center[2]); D = m.D; F = m.F; dirty = true; }
   else if (m.type === 'level') addLevel(m);
