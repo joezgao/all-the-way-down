@@ -11,11 +11,14 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500&display=swap"></noscript>
 <style>
+/* size-adjusted Arial / Georgia stand-ins (same as heptapod): first paint wraps like Inter / Lora, so the swap moves nothing */
+@font-face{font-family:"Inter fallback";src:local("Arial"),local("ArialMT");size-adjust:106.8%;ascent-override:90.4%;descent-override:22.5%;line-gap-override:0%}
+@font-face{font-family:"Lora fallback";font-style:italic;src:local("Georgia Italic"),local("Georgia-Italic");size-adjust:99.7%}
 :root{
   --bg:#000; --fg:#efefef; --dim:#8b8b8b; --faint:#767676; --line:#1c1c1c;
   --accent:#ffb547; --accent-soft:rgba(255,181,71,.14);
-  --serif:"Lora",Georgia,"Times New Roman",serif;
-  --sans:"Inter",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+  --serif:"Lora","Lora fallback",Georgia,"Times New Roman",serif;
+  --sans:"Inter","Inter fallback",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
   color-scheme:dark;
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#000; --fg:#efefef; } }
@@ -35,6 +38,8 @@ h1{font-family:var(--serif);font-weight:400;font-style:italic;font-size:30px;let
 .caption i{font-family:var(--serif);color:var(--fg)}
 .meta-col{position:relative;font-size:11px;letter-spacing:.04em;color:var(--faint);text-align:right;line-height:1.75}
 .meta{font-size:11px;letter-spacing:.04em;color:var(--faint);text-align:right;line-height:1.75;white-space:nowrap;font-variant-numeric:tabular-nums}
+/* counts fill in after load; reserving their width keeps the meta block from growing sideways (CLS) */
+.meta .num{display:inline-block;min-width:7ch;text-align:right}
 .made{position:relative;pointer-events:auto;font:inherit;letter-spacing:inherit;color:var(--faint);background:none;border:0;padding:0;margin-top:4px;cursor:pointer;
   border-radius:0;text-decoration:underline;text-decoration-color:#2e2e2e;text-underline-offset:3px;transition:color .25s}
 .made:hover,.made[aria-expanded="true"]{color:var(--fg)}
@@ -113,6 +118,7 @@ button:disabled{opacity:.4;cursor:default}
   .caption{font-size:12.5px;line-height:1.55}
   .caption .long{display:none}
   .meta,.meta-col{text-align:left;font-size:11px;line-height:1.6}
+  .meta .num{min-width:0}   /* left-aligned here: a reserved width would indent the line */
   .made{margin-top:2px}
   #dive,.ghost{padding:10px 13px;font-size:12.5px}
   #dive{min-width:0}
@@ -178,14 +184,14 @@ button:disabled{opacity:.4;cursor:default}
   </div>
   <div class="meta-col"><div class="meta" id="meta" aria-live="polite">
     <div><span class="mode" id="m-mode">modulation on</span></div>
-    <div><span id="m-drawn">0</span> of <span id="m-total">0</span> surfels drawn</div>
-    <div>≈ <span id="m-mem">0</span> GPU memory (estimate)</div>
+    <div><span id="m-drawn" class="num">–</span> of <span id="m-total" class="num">–</span> surfels drawn</div>
+    <div>≈ <span id="m-mem">–</span> GPU memory (estimate)</div>
     <div><span id="m-fps">–</span> fps<span id="m-gl"></span></div>
     <div id="m-table"></div>
   </div><button class="made" id="about" aria-expanded="false" aria-controls="panel">How it works</button></div>
 </header>
 <div class="ladder" id="ladder" aria-hidden="true">
-  <div id="rungs"></div>
+  <div id="rungs"><div class="rung" id="r0"><span>leaf</span><span class="sc">…</span><span class="bar"><i id="b0"></i></span></div><div class="rung" id="r1"><span>veins</span><span class="sc">…</span><span class="bar"><i id="b1"></i></span></div><div class="rung" id="r2"><span>areoles</span><span class="sc">…</span><span class="bar"><i id="b2"></i></span></div><div class="rung" id="r3"><span>cells</span><span class="sc">…</span><span class="bar"><i id="b3"></i></span></div><div class="rung" id="r4"><span>stoma</span><span class="sc">…</span><span class="bar"><i id="b4"></i></span></div></div>
   <div class="sum" id="sum">Σα = 1.00</div>
   <div class="scalebar"><div class="rule" id="rule"></div><div class="lab" id="rule-lab">1 cm</div></div>
 </div>
