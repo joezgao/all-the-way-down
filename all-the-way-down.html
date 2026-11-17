@@ -53,8 +53,8 @@ h1{font-family:var(--serif);font-weight:400;font-style:italic;font-size:30px;let
 .meta td{color:var(--dim)}
 .meta td:first-child{color:var(--faint);text-align:left;padding-left:0}
 .meta tr.hi td{color:var(--fg)}
-.ladder{position:fixed;left:max(32px,env(safe-area-inset-left));bottom:max(30px,env(safe-area-inset-bottom));pointer-events:none;font-size:11px;letter-spacing:.04em;color:var(--faint);font-variant-numeric:tabular-nums}
-.rung{display:grid;grid-template-columns:62px 52px 64px;align-items:center;gap:8px;height:19px;transition:color .3s}
+.ladder{position:fixed;left:max(32px,env(safe-area-inset-left));bottom:max(30px,env(safe-area-inset-bottom));--rung:19px;min-height:calc(5 * var(--rung) + 61px);pointer-events:none;font-size:11px;letter-spacing:.04em;color:var(--faint);font-variant-numeric:tabular-nums}
+.rung{display:grid;grid-template-columns:62px 52px 64px;align-items:center;gap:8px;height:var(--rung);transition:color .3s}
 .rung .sc{color:#454545}
 .rung .bar{height:2px;background:var(--line);position:relative;overflow:hidden}
 .rung .bar i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--accent)}
@@ -81,6 +81,8 @@ button:disabled{opacity:.4;cursor:default}
 .hint{font-size:11px;color:var(--faint);letter-spacing:.03em}
 #dive.invite{box-shadow:0 0 0 4px rgba(255,181,71,.18),0 0 18px rgba(255,181,71,.35)}
 .meta,.made,.ladder{text-shadow:0 0 2px #000,0 1px 3px rgba(0,0,0,.9),0 0 14px rgba(0,0,0,.8)}
+/* min-height on .ladder reserves its final size (5 rungs + sum + scale bar): on a slow network the first paint can land
+   while the HTML is still streaming, and a bottom-anchored ladder would grow upward as its rungs arrive */
 /* a soft local scrim behind the meta and the ladder: invisible on the black leaf levels, it keeps their grey text
    readable once a dive or a measurement lands on the bright orange stoma */
 .meta-col::before,.ladder::before{content:"";position:absolute;inset:-34px -52px;z-index:-1;pointer-events:none;
@@ -124,8 +126,8 @@ button:disabled{opacity:.4;cursor:default}
   #dive{min-width:0}
   .panel{top:auto;bottom:max(16px,env(safe-area-inset-bottom));right:16px;max-height:min(78%,calc(100% - 32px))}
   .meta table{margin-left:0}
-  .ladder{left:max(16px,env(safe-area-inset-left));bottom:calc(96px + max(16px,env(safe-area-inset-bottom)));font-size:11.5px}
-  .rung{grid-template-columns:56px 50px 44px;height:17px}
+  .ladder{left:max(16px,env(safe-area-inset-left));bottom:calc(96px + max(16px,env(safe-area-inset-bottom)));font-size:11.5px;--rung:17px}
+  .rung{grid-template-columns:56px 50px 44px}
   .dock{left:max(16px,env(safe-area-inset-left));right:max(16px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));align-items:stretch}
   .controls{justify-content:space-between;gap:6px}
   .seg-label{display:none}
@@ -155,7 +157,7 @@ button:disabled{opacity:.4;cursor:default}
   .controls button::after{content:"";position:absolute;inset:-4px 0}
 }
 @media (prefers-reduced-motion: reduce){ *{transition:none!important;animation:none!important} }
-@media (max-height: 560px) and (min-width: 721px){ .ladder .rung{height:16px} }
+@media (max-height: 560px) and (min-width: 721px){ .ladder{--rung:16px} }
 /* short landscape (phones on their side): the long clause of the caption goes and the level caption moves to the
    right, above the dock, so it clears the mark and the leaf */
 @media (max-height:500px) and (orientation:landscape){
