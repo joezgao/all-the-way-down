@@ -65,11 +65,11 @@ h1{font-family:var(--serif);font-weight:400;font-style:italic;font-size:30px;let
 .meta tr.hi td{color:var(--fg)}
 .ladder{position:fixed;left:max(32px,env(safe-area-inset-left));bottom:max(30px,env(safe-area-inset-bottom));--rung:19px;min-height:calc(5 * var(--rung) + 61px);pointer-events:none;font-size:11px;letter-spacing:.04em;color:var(--faint);font-variant-numeric:tabular-nums}
 .rung{display:grid;grid-template-columns:62px 52px 64px;align-items:center;gap:8px;height:var(--rung);transition:color .3s}
-.rung .sc{color:#454545}
+.rung .sc{color:var(--faint)}
 .rung .bar{height:2px;background:var(--line);position:relative;overflow:hidden}
 .rung .bar i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--accent)}
 .rung.on{color:var(--fg)}
-.sum{margin-top:6px;color:#454545}
+.sum{margin-top:6px;color:var(--faint)}
 .scalebar{margin-top:16px;display:flex;flex-direction:column;gap:6px}
 .scalebar .rule{height:5px;border:1px solid var(--dim);border-top:0;width:100px}
 .scalebar .lab{color:var(--dim)}
