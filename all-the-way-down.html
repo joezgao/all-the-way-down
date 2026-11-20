@@ -111,7 +111,7 @@ button:disabled{opacity:.4;cursor:default}
 .mark{position:fixed;left:0;top:0;pointer-events:none;opacity:0;transition:opacity .5s}
 .mark i{position:absolute;left:-8px;top:-8px;width:16px;height:16px;border:1px solid var(--accent);border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
 .mark b{position:absolute;left:9px;top:-9px;width:18px;height:1px;background:var(--accent);transform:rotate(-30deg);transform-origin:0 0;opacity:.7}
-.mark span{position:absolute;left:25px;top:-29px;padding:2px 6px;border-radius:3px;background:rgba(0,0,0,.72);white-space:nowrap;font-size:11px;letter-spacing:.03em;color:var(--accent)}   /* dark backing: the label sits over the orange leaf, so it needs its own ground to stay legible */
+.mark span{position:absolute;left:25px;top:-29px;padding:2px 6px;border-radius:3px;background:rgba(0,0,0,.72);white-space:nowrap;font-size:11px;letter-spacing:.03em;color:var(--accent)}   /* dark backing: the label sits over the orange leaf, so it needs its own ground to stay legible; token-ok: 11px label chip, scale steps would swamp it */
 .panel{position:fixed;top:24px;right:max(24px,env(safe-area-inset-right));width:min(420px,calc(100% - 32px));max-height:calc(100% - 48px);overflow:auto;
   padding:22px 24px 20px;background:rgba(8,8,8,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   border:1px solid #1f1f1f;border-radius:12px;opacity:0;transform:translateY(-4px);pointer-events:none;visibility:hidden;
