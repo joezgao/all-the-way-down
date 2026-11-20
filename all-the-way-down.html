@@ -233,7 +233,7 @@ button:disabled{opacity:.4;cursor:default}
     <p>While you zoom, each surfel's opacity is multiplied by <span class="eq">α</span> (Eq. 2–3), which interpolates in log scale: 1 at its own scale, falling to 0 at its parent's or child's. Between two levels their α add to 1 (Prop. 1), so detail cross-fades instead of popping.</p>
     <p>Surfels with α below 1/255 are dropped before sorting, so the GPU only holds what this zoom needs. Turn modulation <b>off</b> to draw every level at once, not the paper's retrained ablation. <b>Memory</b> is 32 B per drawn surfel plus 12 B per (surfel, 16 px tile) pair, the lists a tile rasterizer like 3DGS would allocate.</p>
     <p>The scene is procedural, not WonderZoom's: their released scenes are 0.3–1.8 GB PyTorch files that need a CUDA renderer. The leaf here is maths, prefiltered at each level's pixel size. The renderer, the leaf and the feather that keeps Prop. 1 true at the edge of each local patch of detail are not from the paper.</p>
-    <p class="credit">Built with Claude for Joe Gao.</p>
+    <p class="credit">How it was made: idea, direction and every taste call by Joe; code written by Claude Code under his review.</p>
 </div>
 
 <script id="worker-src" type="text/plain">
