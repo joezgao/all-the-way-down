@@ -185,14 +185,14 @@ button:disabled{opacity:.4;cursor:default}
   ::selection{background:rgba(128,128,128,.35)}
   button:active:not(:disabled){filter:brightness(.85)}
 </style>
-<style>.jg-home{display:block;width:fit-content;margin:-12px 0 -8px;padding:12px 0;font-size:13px;line-height:20px;letter-spacing:.02em;color:inherit;opacity:.6;text-decoration:underline;text-underline-offset:3px;transition:opacity .2s ease}.jg-home:hover,.jg-home:focus-visible{opacity:1}.jg-home:focus-visible{outline:1px solid currentColor;outline-offset:3px}</style>
+<style>.jg-nav{display:flex;gap:24px;margin:-12px 0 -8px}.jg-nav .jg-home{margin:0}.jg-home{display:block;width:fit-content;margin:-12px 0 -8px;padding:12px 0;font-size:13px;line-height:20px;letter-spacing:.02em;color:inherit;opacity:.6;text-decoration:underline;text-underline-offset:3px;transition:opacity .2s ease}.jg-home:hover,.jg-home:focus-visible{opacity:1}.jg-home:focus-visible{outline:1px solid currentColor;outline-offset:3px}</style>
 </head>
 <body>
 <canvas id="stage" aria-label="A maple leaf rendered from surfels; scroll or pinch to zoom, drag to orbit"></canvas>
 <div class="scrim top" aria-hidden="true"></div><div class="scrim bot" aria-hidden="true"></div>
 <header>
   <div>
-    <a class="jg-home" href="https://joezgao.github.io/work/">← Joe Gao</a>
+    <nav class="jg-nav" aria-label="Links"><a class="jg-home" href="https://joezgao.github.io/work/">← Joe Gao</a><a class="jg-home" href="https://github.com/joezgao/all-the-way-down">Source</a></nav>
     <h1>All the way down</h1>
     <p class="caption">One autumn maple leaf at five scales, each ten times finer: leaf, veins, areoles, cells, a single stoma. <span class="long">Every surfel remembers the scale it was made at and fades as you move away from it: the scale-aware opacity of <i>WonderZoom</i> (Cao, Yu &amp; Wu, arXiv 2512.09164, 2025), in your browser.</span></p>
   </div>
